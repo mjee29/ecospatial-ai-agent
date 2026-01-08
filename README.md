@@ -28,7 +28,7 @@ npm install
 ```
 
 ### 3. 환경 변수 설정
-`.env.example` 파일을 복사하여 `.env` 파일을 만들고, [Google AI Studio](https://aistudio.google.com/)에서 발급받은 API 키를 입력하세요.
+`.env.example` 파일을  `.env.local` 로 수정하여 파일을 만들고, [Google AI Studio](https://aistudio.google.com/)에서 발급받은 API 키와 경기기후플랫폼 API 키를 입력하세요.
 ```bash
 cp .env.example .env
 # .env 파일을 열어 API_KEY=내_키_값 수정
