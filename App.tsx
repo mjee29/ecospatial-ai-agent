@@ -37,6 +37,20 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // Keep track of in-flight requests so we can abort if user sends another request
+  const inFlightController = useRef<AbortController | null>(null);
+
+  // Show persistent warning if required API key(s) are missing
+  const [missingApiWarning, setMissingApiWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    // runtime check for Gemini API key and GG Climate key
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const ggKey = import.meta.env.VITE_GG_CLIMATE_API_KEY;
+    if (!geminiKey) setMissingApiWarning('Gemini API Key (VITE_GEMINI_API_KEY)가 누락되었습니다. `.env.local`에 추가하고 dev 서버를 재시작하세요.');
+    else if (!ggKey) setMissingApiWarning('경기도 기후 API Key (VITE_GG_CLIMATE_API_KEY)가 누락되었습니다. `.env.local`에 추가하고 dev 서버를 재시작하세요.');
+    else setMissingApiWarning(null);
+  }, []);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,10 +63,23 @@ const App: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // Prevent sending if API key missing — provide user-friendly feedback
+    if (!import.meta.env.VITE_GEMINI_API_KEY) {
+      setMessages(prev => [...prev, { role: 'model', text: 'API Key가 설정되어 있지 않습니다. `.env.local`에 VITE_GEMINI_API_KEY를 추가하고 dev 서버를 재시작하세요.', timestamp: new Date() }]);
+      return;
+    }
+
     const userMessage = inputValue.trim();
     setInputValue('');
     setMessages(prev => [...prev, { role: 'user', text: userMessage, timestamp: new Date() }]);
     setIsLoading(true);
+
+    // Abort previous in-flight request (if any) to avoid piling up slow requests
+    if (inFlightController.current) {
+      try { inFlightController.current.abort(); } catch (e) { /* ignore */ }
+      inFlightController.current = null;
+    }
+    inFlightController.current = new AbortController();
 
     try {
       const history = messages.map(m => ({
@@ -60,7 +87,8 @@ const App: React.FC = () => {
         parts: [{ text: m.text }]
       }));
 
-      const response = await chatWithAgent(userMessage, history);
+      // Use a timeout and allow geminiService to use its cache
+      const response = await chatWithAgent(userMessage, history, { timeoutMs: 15000 });
       
       if (response.functionCalls && response.functionCalls.length > 0) {
         for (const call of response.functionCalls) {
@@ -78,13 +106,26 @@ const App: React.FC = () => {
               else if (lowerLoc.includes('안양')) setViewState({ center: [37.3943, 126.9568], zoom: 13 });
             }
 
-            const newActiveLayers = layers.map((type: ClimateLayerType) => ({
-              id: `layer-${type}-${Date.now()}`,
-              type,
-              opacity: 0.75,
-              visible: true
-            }));
-            setActiveLayers(newActiveLayers);
+            // Minimal diff: if requested layer types match current types, don't recreate layers (avoids force-remounting WMSTileLayers)
+            const requestedTypes = new Set((layers || []) as ClimateLayerType[]);
+            const currentTypes = new Set(activeLayers.map(a => a.type));
+            let needUpdate = false;
+            if (requestedTypes.size !== currentTypes.size) needUpdate = true;
+            else {
+              for (const t of requestedTypes) {
+                if (!currentTypes.has(t)) { needUpdate = true; break; }
+              }
+            }
+
+            if (needUpdate) {
+              const newActiveLayers = (layers || []).map((type: ClimateLayerType) => ({
+                id: `layer-${type}-${Date.now()}`,
+                type,
+                opacity: 0.75,
+                visible: true
+              }));
+              setActiveLayers(newActiveLayers);
+            }
           }
         }
       }
@@ -94,14 +135,22 @@ const App: React.FC = () => {
         text: response.text || "분석된 GIS 데이터를 지도에 시각화했습니다.", 
         timestamp: new Date() 
       }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'model', 
-        text: "데이터 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", 
-        timestamp: new Date() 
-      }]);
+    } catch (error: any) {
+      if (error?.message === 'Request timed out') {
+        setMessages(prev => [...prev, { role: 'model', text: '요청이 시간이 초과되었습니다. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.', timestamp: new Date() }]);
+      } else if (error?.name === 'AbortError') {
+        // User aborted the request — ignore since likely superseded by a new request
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: "데이터 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", 
+          timestamp: new Date() 
+        }]);
+      }
     } finally {
       setIsLoading(false);
+      // clear controller
+      inFlightController.current = null;
     }
   };
 
@@ -133,7 +182,30 @@ const App: React.FC = () => {
           >
             <Maximize2 size={20} />
           </button>
+
+          {/* GG API key status (dev helper) */}
+          <div className="hidden md:flex items-center gap-3">
+            {import.meta.env.VITE_GG_CLIMATE_API_KEY ? (
+              <div className="text-sm text-slate-500">GG Key: <span className="font-mono text-xs ml-1">{import.meta.env.VITE_GG_CLIMATE_API_KEY.slice(0,4)}****{import.meta.env.VITE_GG_CLIMATE_API_KEY.slice(-4)}</span></div>
+            ) : (
+              <div className="text-sm text-amber-600">GG Key 없음</div>
+            )}
+            <button
+              onClick={() => { window.location.reload(); }}
+              className="text-xs px-2 py-1 bg-indigo-600 text-white rounded-md"
+            >
+              새로고침
+            </button>
+          </div>
         </div>
+
+        {/* API Key Warning Banner */}
+        {missingApiWarning && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-sm text-yellow-800">
+            <strong className="font-bold">API Key 누락:</strong>
+            <span className="ml-2">{missingApiWarning}</span>
+          </div>
+        )}
 
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white scroll-smooth">

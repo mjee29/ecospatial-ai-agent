@@ -1,9 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, WMSTileLayer, useMap, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import { ActiveLayer } from '../types';
-import { INITIAL_VIEW, LAYER_METADATA, GYEONGGI_WMS_URL } from '../constants';
+import { INITIAL_VIEW, LAYER_METADATA, GYEONGGI_WMS_BASE_URL } from '../constants';
 import { Loader2, Layers } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
+
+// 경기도 기후플랫폼 API 키
+const GG_CLIMATE_API_KEY = import.meta.env.VITE_GG_CLIMATE_API_KEY;
 
 const MapViewUpdater = ({ center, zoom }: { center: [number, number], zoom: number }) => {
   const map = useMap();
@@ -29,6 +33,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState }) 
     }
   }, [activeLayers]);
 
+  // Dev-time console trace to verify the GG climate key is available at runtime
+  useEffect(() => {
+    console.log('[Map] VITE_GG_CLIMATE_API_KEY present:', GG_CLIMATE_API_KEY ? 'yes' : 'no');
+  }, [GG_CLIMATE_API_KEY]);
+
   // Cast components to any to resolve property-not-found type errors which often occur with react-leaflet types in certain build environments
   const MapContainerAny = MapContainer as any;
   const TileLayerAny = TileLayer as any;
@@ -49,12 +58,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState }) 
       )}
 
       {/* MapContainer component used via any-cast to avoid incorrect 'center' property missing error */}
-      <MapContainerAny 
-        center={INITIAL_VIEW} 
-        zoom={12} 
+      <MapContainerAny
+        center={INITIAL_VIEW}
+        zoom={12}
         zoomControl={false}
-        scrollWheelZoom={true} 
-        className="z-10 grayscale-[0.2] contrast-[1.1]"
+        scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%' }}
+        className="z-10"
       >
         {/* TileLayer component used via any-cast to avoid incorrect 'attribution' property missing error */}
         <TileLayerAny
@@ -66,18 +76,32 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState }) 
 
         {activeLayers.filter(l => l.visible).map(layer => {
           const metadata = LAYER_METADATA[layer.type];
+          // API 키를 URL에 직접 포함
+          const wmsUrl = `${GYEONGGI_WMS_BASE_URL}?apiKey=${GG_CLIMATE_API_KEY}`;
+          console.log('[WMS] Loading layer:', metadata.wmsLayer, 'URL:', wmsUrl);
           return (
-            /* WMSTileLayer component used via any-cast to avoid incorrect 'opacity' property missing error */
+            /* WMSTileLayer component - 경기도 기후플랫폼 GeoServer WMS */
             <WMSTileLayerAny
               key={layer.id}
-              url={GYEONGGI_WMS_URL}
+              url={wmsUrl}
               params={{
-                layers: metadata.wmsLayer,
-                format: 'image/png',
-                transparent: true,
-                version: '1.3.0',
+                SERVICE: 'WMS',
+                REQUEST: 'GetMap',
+                VERSION: '1.3.0',
+                FORMAT: 'image/png',
+                STYLES: '',
+                TRANSPARENT: 'TRUE',
+                LAYERS: metadata.wmsLayer,
+                TILED: true,
+                CRS: 'EPSG:3857',
+                FORMAT_OPTIONS: 'dpi:68'
               }}
               opacity={layer.opacity}
+              eventHandlers={{
+                loading: () => console.log('[WMS] Loading started:', metadata.wmsLayer),
+                load: () => console.log('[WMS] Load complete:', metadata.wmsLayer),
+                tileerror: (e: any) => console.error('[WMS] Tile error:', metadata.wmsLayer, e)
+              }}
             />
           );
         })}
