@@ -76,8 +76,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState }) 
 
         {activeLayers.filter(l => l.visible).map(layer => {
           const metadata = LAYER_METADATA[layer.type];
-          // API 키를 URL에 직접 포함
-          const wmsUrl = `${GYEONGGI_WMS_BASE_URL}?apiKey=${GG_CLIMATE_API_KEY}`;
+          // API 키를 요청 파라미터에 포함
+          const wmsUrl = GYEONGGI_WMS_BASE_URL;
           console.log('[WMS] Loading layer:', metadata.wmsLayer, 'URL:', wmsUrl);
           return (
             /* WMSTileLayer component - 경기도 기후플랫폼 GeoServer WMS */
@@ -94,7 +94,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState }) 
                 LAYERS: metadata.wmsLayer,
                 TILED: true,
                 CRS: 'EPSG:3857',
-                FORMAT_OPTIONS: 'dpi:68'
+                FORMAT_OPTIONS: 'dpi:68',
+                apiKey: GG_CLIMATE_API_KEY
               }}
               opacity={layer.opacity}
               eventHandlers={{

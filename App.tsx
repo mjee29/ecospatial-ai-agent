@@ -2,18 +2,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import MapComponent from './components/MapComponent';
 import { chatWithAgent } from './services/geminiService';
+import { getElderlyPopulation } from './services/sgisService';
 import { ActiveLayer, ClimateLayerType, Message } from './types';
 import { INITIAL_VIEW } from './constants';
-import { 
-  Loader2, 
-  Send, 
-  Map as MapIcon, 
-  ShieldAlert, 
-  Thermometer, 
-  Users, 
-  Menu, 
-  Info, 
-  MessageSquare, 
+import {
+  Loader2,
+  Send,
+  Map as MapIcon,
+  ShieldAlert,
+  Thermometer,
+  Users,
+  Menu,
+  Info,
+  MessageSquare,
   ArrowLeft,
   Settings,
   Activity,
@@ -94,7 +95,7 @@ const App: React.FC = () => {
         for (const call of response.functionCalls) {
           if (call.name === 'updateMapLayers') {
             const { activeLayers: layers, locationName } = call.args as any;
-            
+
             setViewMode('map');
 
             if (locationName) {
@@ -118,12 +119,39 @@ const App: React.FC = () => {
             }
 
             if (needUpdate) {
-              const newActiveLayers = (layers || []).map((type: ClimateLayerType) => ({
-                id: `layer-${type}-${Date.now()}`,
-                type,
-                opacity: 0.75,
-                visible: true
-              }));
+              const newActiveLayers: ActiveLayer[] = [];
+
+              for (const type of layers || []) {
+                const layerData: ActiveLayer = {
+                  id: `layer-${type}-${Date.now()}`,
+                  type,
+                  opacity: 0.75,
+                  visible: true
+                };
+
+                // ELDERLY_POPULATION 레이어이고 locationName이 있으면 SGIS API 호출
+                if (type === ClimateLayerType.ELDERLY_POPULATION && locationName) {
+                  try {
+                    console.log('[App] Fetching elderly population data for:', locationName);
+                    const elderlyData = await getElderlyPopulation(locationName);
+                    layerData.elderlyData = {
+                      districtName: elderlyData.districtName,
+                      totalPopulation: elderlyData.totalPopulation,
+                      elderlyPopulation: elderlyData.elderlyPopulation,
+                      elderlyRatio: elderlyData.elderlyRatio,
+                      sixtyCount: elderlyData.sixtyCount,
+                      seventyPlusCount: elderlyData.seventyPlusCount,
+                      avgAge: elderlyData.avgAge
+                    };
+                    console.log('[App] Elderly data fetched successfully:', layerData.elderlyData);
+                  } catch (error) {
+                    console.error('[App] Failed to fetch elderly population data:', error);
+                  }
+                }
+
+                newActiveLayers.push(layerData);
+              }
+
               setActiveLayers(newActiveLayers);
             }
           }

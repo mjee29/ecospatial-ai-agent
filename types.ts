@@ -18,12 +18,32 @@ export interface ActiveLayer {
   opacity: number;
   visible: boolean;
   filter?: string;
+  // SGIS 고령인구 데이터 (ELDERLY_POPULATION 레이어에만 적용)
+  elderlyData?: {
+    districtName: string;
+    totalPopulation: number;
+    elderlyPopulation: number;
+    elderlyRatio: number;
+    sixtyCount: number;
+    seventyPlusCount: number;
+    avgAge: number;
+  };
 }
 
 export interface Message {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
+  // 메시지에 고령인구 데이터 포함 가능
+  elderlyData?: {
+    districtName: string;
+    totalPopulation: number;
+    elderlyPopulation: number;
+    elderlyRatio: number;
+    sixtyCount: number;
+    seventyPlusCount: number;
+    avgAge: number;
+  };
 }
 
 export interface MapAction {

@@ -26,10 +26,10 @@ export const LAYER_METADATA = {
     description: '도시 열섬 현상 및 폭염 취약성 등급 데이터입니다.'
   },
   [ClimateLayerType.ELDERLY_POPULATION]: {
-    name: '극한호우 위험도',
+    name: '고령인구 밀도',
     color: '#8b5cf6',
     wmsLayer: 'spggcee:tm_sigun_flod_dngr_evl_rnk',
-    description: '시군별 극한호우 위험도 순위입니다.'
+    description: '통계청 SGIS 데이터 기반 60대 이상 고령인구 분포입니다.'
   },
   [ClimateLayerType.GREEN_SPACE]: {
     name: '녹지 현황도',
