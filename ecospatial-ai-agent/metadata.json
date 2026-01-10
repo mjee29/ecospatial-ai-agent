@@ -1,0 +1,7 @@
+{
+  "name": "Copy of EcoSpatial AI Agent",
+  "description": "A natural language climate data analysis agent that controls a spatial map of Gyeonggi-do to visualize climate risks and social vulnerability.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
