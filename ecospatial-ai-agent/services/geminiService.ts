@@ -81,7 +81,14 @@ const mapTools: FunctionDeclaration[] = [
 ];
 
 // Simple in-memory cache to avoid repeated identical requests
+// 주의: Tool call이 포함된 응답은 캐시하지 않음 (매번 새 데이터 조회 필요)
 const _chatCache = new Map<string, any>();
+
+// 캐시 초기화 함수 (새 분석 요청 시 호출)
+export const clearChatCache = () => {
+  _chatCache.clear();
+  console.log('[Gemini API] Cache cleared');
+};
 
 // Tool 실행 결과 타입
 export interface ToolExecutionResult {
@@ -287,7 +294,14 @@ export const chatWithAgent = async (
     console.log('[Gemini API] Parsed functionCalls:', functionCalls);
 
     const result = { text, functionCalls };
-    _chatCache.set(key, result);
+
+    // Function call이 포함된 응답은 캐시하지 않음 (매번 새 데이터 조회 필요)
+    if (functionCalls.length === 0) {
+      _chatCache.set(key, result);
+    } else {
+      console.log('[Gemini API] Skipping cache for function call response');
+    }
+
     return result;
   } catch (error) {
     console.error("[Gemini API Error] Full error details:", error);

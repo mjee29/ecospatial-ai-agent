@@ -18,7 +18,7 @@ export default defineConfig({
           const apiKey = url.searchParams.get('apiKey');
           const pathWithoutQuery = path.split('?')[0];
           const newPath = pathWithoutQuery.replace(/^\/wms/, '/ols/api/geoserver/wms');
-          
+
           // apiKey가 있으면 쿼리 파라미터로 추가
           if (apiKey) {
             return `${newPath}?apiKey=${apiKey}&${url.searchParams.toString().replace(`apiKey=${apiKey}`, '').replace(/^&/, '')}`;
@@ -26,6 +26,12 @@ export default defineConfig({
           return newPath;
         },
         secure: false
+      },
+      '/api/proxy': {
+        target: 'https://climate.gg.go.kr/ols/api/geoserver/wfs',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/proxy/, '')
       }
     }
   }

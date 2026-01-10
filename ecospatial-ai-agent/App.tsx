@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import MapComponent from './components/MapComponent';
-import { chatWithAgent, sendToolResult, updateConversationContext, ToolExecutionResult } from './services/geminiService';
+import { chatWithAgent, sendToolResult, updateConversationContext, clearChatCache, ToolExecutionResult } from './services/geminiService';
 import { getElderlyPopulation, GYEONGGI_DISTRICT_CODES } from './services/sgisService';
 import { createToolResult } from './services/climateDataService';
 import { ActiveLayer, ClimateLayerType, Message } from './types';
@@ -127,8 +127,12 @@ const App: React.FC = () => {
     inFlightController.current = new AbortController();
 
     try {
-      // Step 1: 대화 히스토리 구성
-      const history = messages.map(m => ({
+      // 새 요청 시 캐시 초기화 (매번 새 데이터 조회)
+      clearChatCache();
+
+      // Step 1: 대화 히스토리 구성 (최근 6개 메시지만 유지하여 컨텍스트 혼란 방지)
+      const recentMessages = messages.slice(-6);
+      const history = recentMessages.map(m => ({
         role: m.role as 'user' | 'model',
         parts: [{ text: m.text }]
       }));
@@ -208,9 +212,10 @@ const App: React.FC = () => {
               layers?.length > 0 ? `${layers.join(', ')} 분석` : undefined
             );
 
-            // Step 4: Tool 실행 결과 생성 (기후 데이터 포함)
+            // Step 4: Tool 실행 결과 생성 (기후 데이터 포함 - WFS API 호출)
             console.log('[App] Step 3: Creating tool execution result');
-            const toolResultData = createToolResult(
+            console.log('실제 기후 데이터 조회 중...');
+            const toolResultData = await createToolResult(
               locationName || '경기도',
               layers as ClimateLayerType[],
               elderlyDataForTool
