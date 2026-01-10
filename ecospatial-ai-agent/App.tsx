@@ -221,6 +221,16 @@ const App: React.FC = () => {
               elderlyDataForTool
             );
 
+            // [추가] 가져온 WFS 데이터를 지도 레이어 상태에 반영
+            setActiveLayers(prevLayers => prevLayers.map(layer => {
+              const data = toolResultData.wfsData?.[layer.type];
+              if (data) {
+                console.log(`[App] Injecting GeoJSON into layer ${layer.type}`);
+                return { ...layer, geoJson: data };
+              }
+              return layer;
+            }));
+
             const toolExecutionResult: ToolExecutionResult = {
               toolName: 'updateMapLayers',
               args: call.args,

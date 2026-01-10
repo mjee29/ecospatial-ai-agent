@@ -31,6 +31,8 @@ export interface ActiveLayer {
     seventyPlusCount: number;
     avgAge: number;
   };
+  // 레이어의 실제 위치 데이터 (GeoJSON FeatureCollection)
+  geoJson?: any;
 }
 
 export interface Message {

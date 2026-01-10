@@ -193,9 +193,8 @@ export const createToolResult = async (
   for (const { layerType, geoJson } of fetchResults) {
     if (geoJson && geoJson.features && geoJson.features.length > 0) {
       result.wfsData[layerType] = {
-        totalFeatures: geoJson.totalFeatures || geoJson.features.length,
-        featureCount: geoJson.features.length,
-        features: geoJson.features.slice(0, 5)
+        type: 'FeatureCollection',
+        features: geoJson.features.slice(0, 5) // 상위 5개만 추출
       };
 
       // 텍스트 요약 생성
