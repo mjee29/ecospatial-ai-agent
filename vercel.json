@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    {
+      "source": "/wms/:path*",
+      "destination": "https://climate.gg.go.kr/ols/api/geoserver/wms/:path*"
+    },
+    {
+      "source": "/wfs/:path*",
+      "destination": "https://climate.gg.go.kr/ols/api/geoserver/wfs/:path*"
+    },
+    {
+      "source": "/airkorea/:path*",
+      "destination": "https://apis.data.go.kr/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}

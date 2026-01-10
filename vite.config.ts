@@ -10,29 +10,39 @@ export default defineConfig({
   server: {
     proxy: {
       '/wms': {
-        target: 'https://climate.gg.go.kr',
+        target: 'https://climate.gg.go.kr/ols/api/geoserver',
         changeOrigin: true,
         rewrite: (path) => {
-          // URL의 쿼리 파라미터를 추출하여 경로에 포함
-          const url = new URL(path, 'http://localhost');
-          const apiKey = url.searchParams.get('apiKey');
-          const pathWithoutQuery = path.split('?')[0];
-          const newPath = pathWithoutQuery.replace(/^\/wms/, '/ols/api/geoserver/wms');
-
-          // apiKey가 있으면 쿼리 파라미터로 추가
-          if (apiKey) {
-            return `${newPath}?apiKey=${apiKey}&${url.searchParams.toString().replace(`apiKey=${apiKey}`, '').replace(/^&/, '')}`;
-          }
-          return newPath;
+          // /wms?... → /wms?...
+          return path.replace(/^\/wms/, '/wms');
         },
-        secure: false
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       },
-      // 에어코리아 API 프록시 (Mixed Content 해결)
+      '/wfs': {
+        target: 'https://climate.gg.go.kr/ols/api/geoserver',
+        changeOrigin: true,
+        rewrite: (path) => {
+          // /wfs?... → /wfs?...
+          return path.replace(/^\/wfs/, '/wfs');
+        },
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+      ,
+      // 에어코리아 API 프록시 (공공데이터포털)
       '/airkorea': {
         target: 'http://apis.data.go.kr',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/airkorea/, ''),
-        secure: false
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       }
     }
   }

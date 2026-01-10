@@ -286,16 +286,30 @@ export const getGyeonggiAirQuality = async (): Promise<CachedAirQualityItem[]> =
     });
 
     const url = `${AIR_QUALITY_BASE_URL}/getCtprvnRltmMesureDnsty?${params.toString()}`;
+    console.log('[AirKorea API] Request URL:', url);
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`경기도 대기질 조회 실패: ${response.status}`);
+      throw new Error(`경기도 대기질 조회 실패: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    // 서버가 HTML로 응답하는 경우가 있어 텍스트로 먼저 읽음
+    const responseText = await response.text();
+    if (!responseText.trim().startsWith('{')) {
+      console.error('[AirKorea API] Unexpected response (not JSON). Preview:', responseText.substring(0, 300));
+      throw new Error('서버가 JSON이 아닌 형식으로 응답했습니다. 프록시 또는 API 키를 확인하세요.');
+    }
 
-    if (data.response.header.resultCode !== '00') {
-      throw new Error(`API 오류: ${data.response.header.resultMsg}`);
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      console.error('[AirKorea API] JSON parse error:', err);
+      throw new Error('응답을 JSON으로 파싱하는 데 실패했습니다.');
+    }
+
+    if (data.response?.header?.resultCode !== '00') {
+      throw new Error(`API 오류: ${data.response?.header?.resultMsg || 'Unknown error'}`);
     }
 
     const items = data.response.body.items || [];
@@ -388,13 +402,26 @@ export const getStationAirQuality = async (stationName: string): Promise<AirQual
     });
 
     const url = `${AIR_QUALITY_BASE_URL}/getMsrstnAcctoRltmMesureDnsty?${params.toString()}`;
+    console.log('[AirKorea API] Request URL (station):', url);
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`대기질 조회 실패: ${response.status}`);
+      throw new Error(`대기질 조회 실패: ${response.status} ${response.statusText}`);
     }
 
-    const data: AirQualityResponse = await response.json();
+    const responseText = await response.text();
+    if (!responseText.trim().startsWith('{')) {
+      console.error('[AirKorea API] Unexpected station response (not JSON). Preview:', responseText.substring(0, 300));
+      return null;
+    }
+
+    let data: AirQualityResponse;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      console.error('[AirKorea API] Station JSON parse error:', err);
+      return null;
+    }
 
     if (data.response.header.resultCode !== '00') {
       console.error(`API 오류: ${data.response.header.resultMsg}`);

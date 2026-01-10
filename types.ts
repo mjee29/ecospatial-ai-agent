@@ -4,7 +4,8 @@ export enum ClimateLayerType {
   HEATWAVE_VULNERABILITY = 'heatwave',
   ELDERLY_POPULATION = 'elderly',
   GREEN_SPACE = 'parks',
-  AIR_QUALITY = 'air_quality'
+  AIR_QUALITY = 'air_quality',
+  WEATHER = 'weather'
 }
 
 export interface MapViewState {
@@ -47,6 +48,20 @@ export interface ActiveLayer {
     o3Value: number;
     no2Value: number;
   };
+  // 경기도 AWS 기상관측 데이터 (WEATHER 레이어에만 적용)
+  weatherData?: {
+    sigun: string;
+    station: string;
+    datetime: string;
+    lat: number;
+    lon: number;
+    temperature_c: number;
+    humidity_pct: number;
+    wind_speed_ms: number;
+    wind_direction_deg: number;
+    heat_index: number | null;
+    wind_chill: number | null;
+  };
 }
 
 export interface Message {
@@ -80,4 +95,20 @@ export interface Message {
 export interface MapAction {
   type: 'ZOOM_TO' | 'ADD_LAYER' | 'REMOVE_LAYER' | 'HIGHLIGHT_AREA';
   payload: any;
+}
+
+// 경기도 AWS 기상관측 데이터 (WEATHER 레이어에 적용)
+export interface WeatherData {
+  sigun: string;               // 시군명
+  station: string;             // 관측지점명
+  stationId: string;           // 관측지점번호
+  datetime: string;            // 관측 일시
+  lat: number;                 // 위도
+  lon: number;                 // 경도
+  temperature_c: number;       // 기온 (℃)
+  humidity_pct: number;        // 습도 (%)
+  wind_speed_ms: number;       // 풍속 (m/s)
+  wind_direction_deg: number;  // 풍향 (deg)
+  heat_index: number | null;   // 열지수 (체감온도 - 여름)
+  wind_chill: number | null;   // 체감온도 (겨울)
 }

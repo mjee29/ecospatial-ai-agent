@@ -4,22 +4,22 @@ import MapComponent from './components/MapComponent';
 import { chatWithAgent } from './services/geminiService';
 import { getElderlyPopulation } from './services/sgisService';
 import { getAirQuality } from './services/airkoreaService';
+import { getWeather } from './services/weatherService';
 import { ActiveLayer, ClimateLayerType, Message } from './types';
 import { INITIAL_VIEW } from './constants';
 import {
   Loader2,
   Send,
   Map as MapIcon,
-  ShieldAlert,
   Thermometer,
   Users,
-  Menu,
-  Info,
   MessageSquare,
   ArrowLeft,
-  Settings,
   Activity,
-  Maximize2
+  Maximize2,
+  Wind,
+  Droplets,
+  MapPin
 } from 'lucide-react';
 
 type ViewMode = 'chat' | 'map';
@@ -38,6 +38,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
+  const [currentLocationName, setCurrentLocationName] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   // Keep track of in-flight requests so we can abort if user sends another request
   const inFlightController = useRef<AbortController | null>(null);
@@ -101,11 +102,48 @@ const App: React.FC = () => {
 
             if (locationName) {
               const lowerLoc = locationName.toLowerCase();
-              if (lowerLoc.includes('수원')) setViewState({ center: [37.2635, 127.0287], zoom: 13 });
-              else if (lowerLoc.includes('성남') || lowerLoc.includes('판교')) setViewState({ center: [37.4201, 127.1265], zoom: 13 });
-              else if (lowerLoc.includes('용인')) setViewState({ center: [37.2411, 127.1776], zoom: 12 });
-              else if (lowerLoc.includes('고양')) setViewState({ center: [37.6583, 126.832], zoom: 12 });
-              else if (lowerLoc.includes('안양')) setViewState({ center: [37.3943, 126.9568], zoom: 13 });
+              // 경기도 주요 도시 좌표 매핑
+              const locationCoords: Record<string, [number, number]> = {
+                '수원': [37.2635, 127.0287],
+                '성남': [37.4201, 127.1265],
+                '판교': [37.3947, 127.1112],
+                '용인': [37.2411, 127.1776],
+                '고양': [37.6583, 126.832],
+                '안양': [37.3943, 126.9568],
+                '남양주': [37.6360, 127.2165],
+                '부천': [37.5034, 126.7660],
+                '광명': [37.4786, 126.8644],
+                '평택': [36.9921, 127.0857],
+                '안산': [37.3219, 126.8309],
+                '과천': [37.4292, 126.9876],
+                '구리': [37.5943, 127.1295],
+                '오산': [37.1498, 127.0772],
+                '시흥': [37.3800, 126.8028],
+                '군포': [37.3616, 126.9352],
+                '의왕': [37.3447, 126.9685],
+                '하남': [37.5392, 127.2147],
+                '파주': [37.7126, 126.7610],
+                '이천': [37.2719, 127.4348],
+                '안성': [37.0078, 127.2797],
+                '김포': [37.6153, 126.7156],
+                '화성': [37.1995, 126.8313],
+                '광주': [37.4095, 127.2550],
+                '양주': [37.7854, 127.0456],
+                '포천': [37.8949, 127.2003],
+                '여주': [37.2984, 127.6374],
+                '의정부': [37.7381, 127.0337],
+                '연천': [38.0965, 127.0748],
+                '가평': [37.8315, 127.5097],
+                '양평': [37.4917, 127.4876],
+              };
+
+              for (const [city, coords] of Object.entries(locationCoords)) {
+                if (lowerLoc.includes(city)) {
+                  setViewState({ center: coords, zoom: 13 });
+                  setCurrentLocationName(locationName);
+                  break;
+                }
+              }
             }
 
             // Minimal diff: if requested layer types match current types, don't recreate layers (avoids force-remounting WMSTileLayers)
@@ -122,10 +160,15 @@ const App: React.FC = () => {
 
             // locationName이 변경되면 데이터 레이어는 무조건 업데이트
             const hasDataLayer = requestedTypes.has(ClimateLayerType.AIR_QUALITY) ||
-                                 requestedTypes.has(ClimateLayerType.ELDERLY_POPULATION);
+                                 requestedTypes.has(ClimateLayerType.ELDERLY_POPULATION) ||
+                                 requestedTypes.has(ClimateLayerType.WEATHER);
             const currentLocationName = activeLayers.find(l => l.airQualityData)?.airQualityData?.locationName ||
-                                        activeLayers.find(l => l.elderlyData)?.elderlyData?.districtName;
-            if (hasDataLayer && locationName && locationName !== currentLocationName) {
+                                        activeLayers.find(l => l.elderlyData)?.elderlyData?.districtName ||
+                                        activeLayers.find(l => l.weatherData)?.weatherData?.sigun;
+            // 데이터 레이어가 있고 locationName이 다르면 업데이트 (sigun에서 '시'/'군' 제거 후 비교)
+            const normalizedCurrent = currentLocationName?.replace(/시$|군$/g, '');
+            const normalizedNew = locationName?.replace(/시$|군$/g, '');
+            if (hasDataLayer && locationName && normalizedNew !== normalizedCurrent) {
               needUpdate = true;
             }
 
@@ -185,6 +228,32 @@ const App: React.FC = () => {
                     console.log('[App] Air quality data fetched successfully:', layerData.airQualityData);
                   } catch (error) {
                     console.error('[App] Failed to fetch air quality data:', error);
+                  }
+                }
+
+                // WEATHER 레이어이고 locationName이 있으면 경기도 AWS 기상 API 호출
+                if (type === ClimateLayerType.WEATHER && locationName) {
+                  try {
+                    console.log('[App] Fetching weather data for:', locationName);
+                    const weatherData = await getWeather(locationName);
+                    if (weatherData) {
+                      layerData.weatherData = {
+                        sigun: weatherData.sigun,
+                        station: weatherData.station,
+                        datetime: weatherData.datetime,
+                        lat: weatherData.lat,
+                        lon: weatherData.lon,
+                        temperature_c: weatherData.temperature_c,
+                        humidity_pct: weatherData.humidity_pct,
+                        wind_speed_ms: weatherData.wind_speed_ms,
+                        wind_direction_deg: weatherData.wind_direction_deg,
+                        heat_index: weatherData.heat_index,
+                        wind_chill: weatherData.wind_chill
+                      };
+                      console.log('[App] Weather data fetched successfully:', layerData.weatherData);
+                    }
+                  } catch (error) {
+                    console.error('[App] Failed to fetch weather data:', error);
                   }
                 }
 
@@ -305,13 +374,53 @@ const App: React.FC = () => {
 
         {/* Input Controls */}
         <div className="p-5 border-t border-slate-100 bg-slate-50 shrink-0">
+          {/* 선택 가능한 시/정보 안내 */}
+          <div className="mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <div className="mb-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">검색 가능한 시</span>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {['수원', '성남', '용인', '고양', '안양', '부천', '평택', '안산', '화성', '남양주', '의정부', '시흥', '파주', '김포', '광명', '광주', '군포', '오산', '이천', '하남'].map(city => (
+                  <button
+                    key={city}
+                    onClick={() => setInputValue(`${city}시 `)}
+                    className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">선택 가능한 정보</span>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {[
+                  { icon: <Thermometer size={12}/>, label: '기온/날씨', color: 'text-blue-500', keyword: '기상 정보' },
+                  { icon: <Wind size={12}/>, label: '대기질', color: 'text-cyan-500', keyword: '대기질 정보' },
+                  { icon: <Users size={12}/>, label: '노인인구', color: 'text-purple-500', keyword: '노인 인구 밀도' },
+                  { icon: <Droplets size={12}/>, label: '폭염취약성', color: 'text-orange-500', keyword: '폭염 취약성' },
+                  { icon: <MapPin size={12}/>, label: '녹지현황', color: 'text-green-500', keyword: '녹지 현황' },
+                ].map((info, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setInputValue(prev => prev + info.keyword + ' ')}
+                    className="flex items-center gap-1 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                  >
+                    <span className={info.color}>{info.icon}</span>
+                    {info.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 빠른 예시 버튼 */}
           <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
              {[
-               { icon: <ShieldAlert size={14}/>, label: '수원 침수', color: 'text-rose-500', q: '수원시 침수 위험 구역 보여줘' },
-               { icon: <Thermometer size={14}/>, label: '용인 폭염', color: 'text-orange-500', q: '용인시 폭염 취약성 분석해줘' },
-               { icon: <Users size={14}/>, label: '노인 인구', color: 'text-indigo-500', q: '성남시 노인 인구 밀도 레이어 추가' }
+               { icon: <Thermometer size={14}/>, label: '수원 날씨', color: 'text-blue-500', q: '수원시 기상 정보 보여줘' },
+               { icon: <Wind size={14}/>, label: '성남 대기질', color: 'text-cyan-500', q: '성남시 대기질 정보 보여줘' },
+               { icon: <Users size={14}/>, label: '용인 노인인구', color: 'text-purple-500', q: '용인시 노인 인구 밀도 보여줘' }
              ].map((btn, idx) => (
-               <button 
+               <button
                  key={idx}
                  onClick={() => setInputValue(btn.q)}
                  className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm"
@@ -380,38 +489,26 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Status HUD (Top Right) */}
-        <div className="absolute top-6 right-6 z-[2000] space-y-4 max-w-[280px]">
-           <div className="bg-slate-900/90 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-white/10 text-white">
-              <div className="flex items-center justify-between mb-4">
-                 <span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase">Analysis HUD</span>
-                 <Settings size={14} className="text-slate-500 hover:rotate-90 transition-transform cursor-pointer" />
-              </div>
-              <div className="space-y-4">
-                 <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                    <span className="text-[11px] text-slate-400 font-medium">Active Layers</span>
-                    <span className="text-2xl font-black text-indigo-400 leading-none">{activeLayers.length}</span>
-                 </div>
-                 <div className="flex justify-between items-end">
-                    <span className="text-[11px] text-slate-400 font-medium">Region Focus</span>
-                    <span className="text-xs font-bold truncate ml-4">Gyeonggi-do</span>
-                 </div>
-                 {activeLayers.length > 0 && (
-                   <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                     <div className="flex flex-wrap gap-1.5">
-                       {activeLayers.map(l => (
-                         <div key={l.id} className="w-2 h-2 rounded-full bg-emerald-500" title={l.type} />
-                       ))}
-                     </div>
-                   </div>
-                 )}
-              </div>
-           </div>
-        </div>
 
-        <MapComponent 
-          activeLayers={activeLayers} 
+        <MapComponent
+          activeLayers={activeLayers}
           viewState={viewState}
+          locationName={currentLocationName}
+          onRAGAnalysisGenerated={(analysis) => {
+            // RAG 분석 결과를 채팅창에 자동 추가
+            if (analysis && analysis.trim()) {
+              setMessages(prev => {
+                // 이미 같은 분석 메시지가 있으면 추가하지 않음
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg?.text === analysis) return prev;
+                return [...prev, {
+                  role: 'model',
+                  text: analysis,
+                  timestamp: new Date()
+                }];
+              });
+            }
+          }}
         />
 
         {/* Footer Credit */}

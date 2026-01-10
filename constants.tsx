@@ -8,9 +8,10 @@ export const GYEONGGI_BOUNDS: [number, number][] = [
 
 export const INITIAL_VIEW: [number, number] = [37.2635727, 127.0287149]; // Suwon center
 
-// 경기도 기후플랫폼 GeoServer WMS API (프록시 경로 사용)
+// 경기도 기후플랫폼 GeoServer WMS/WFS API (프록시 경로 사용)
 // API 키는 MapComponent에서 URL에 직접 추가
 export const GYEONGGI_WMS_BASE_URL = '/wms';
+export const GYEONGGI_WFS_BASE_URL = '/wfs';
 
 export const LAYER_METADATA = {
   [ClimateLayerType.FLOOD_RISK]: {
@@ -42,5 +43,11 @@ export const LAYER_METADATA = {
     color: '#06b6d4',
     wmsLayer: 'spggcee:grbt',
     description: '에어코리아 실시간 대기질 정보 (PM10, PM2.5, 통합대기환경지수)'
+  },
+  [ClimateLayerType.WEATHER]: {
+    name: '실시간 기상',
+    color: '#3b82f6',
+    wmsLayer: null,  // WMS 레이어 없음 - 데이터 오버레이만 표시
+    description: '경기도 AWS 실시간 기상관측 (기온, 습도, 풍속, 체감온도)'
   }
 };
