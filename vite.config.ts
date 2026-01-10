@@ -43,6 +43,26 @@ export default defineConfig({
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
+      },
+      // SGIS 인증 API 프록시 (kostat.go.kr)
+      '/sgis-auth': {
+        target: 'https://sgisapi.kostat.go.kr',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/sgis-auth/, ''),
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      },
+      // SGIS 인구데이터 API 프록시 (mods.go.kr)
+      '/sgis-data': {
+        target: 'https://sgisapi.mods.go.kr',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/sgis-data/, ''),
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       }
     }
   }

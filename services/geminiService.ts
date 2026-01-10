@@ -50,12 +50,8 @@ interface RAGAnalysisData {
   locationName: string;
   elderlyData?: {
     districtName: string;
-    totalPopulation: number;
-    elderlyPopulation: number;
-    elderlyRatio: number;
-    sixtyCount: number;
-    seventyPlusCount: number;
-    avgAge: number;
+    seventyPlusCount: number; // 70대 이상 인구수
+    seventyPlusRatio: number; // 70대 이상 인구비율
   };
   airQualityData?: {
     stationName: string;
@@ -112,12 +108,8 @@ export const generateRAGAnalysis = async (data: RAGAnalysisData): Promise<string
     const e = data.elderlyData;
     dataContext += `### 고령인구 현황\n`;
     dataContext += `- 행정구역: ${e.districtName}\n`;
-    dataContext += `- 총 인구: ${e.totalPopulation.toLocaleString()}명\n`;
-    dataContext += `- 고령인구(65세 이상): ${e.elderlyPopulation.toLocaleString()}명\n`;
-    dataContext += `- 고령화율: ${e.elderlyRatio.toFixed(1)}%\n`;
-    dataContext += `- 60대 인구: ${e.sixtyCount.toLocaleString()}명\n`;
     dataContext += `- 70대 이상 인구: ${e.seventyPlusCount.toLocaleString()}명\n`;
-    dataContext += `- 평균 연령: ${e.avgAge.toFixed(1)}세\n\n`;
+    dataContext += `- 70대 이상 인구비율: ${e.seventyPlusRatio.toFixed(1)}%\n\n`;
   }
 
   if (data.airQualityData) {

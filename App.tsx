@@ -190,12 +190,8 @@ const App: React.FC = () => {
                     const elderlyData = await getElderlyPopulation(locationName);
                     layerData.elderlyData = {
                       districtName: elderlyData.districtName,
-                      totalPopulation: elderlyData.totalPopulation,
-                      elderlyPopulation: elderlyData.elderlyPopulation,
-                      elderlyRatio: elderlyData.elderlyRatio,
-                      sixtyCount: elderlyData.sixtyCount,
                       seventyPlusCount: elderlyData.seventyPlusCount,
-                      avgAge: elderlyData.avgAge
+                      seventyPlusRatio: elderlyData.seventyPlusRatio,
                     };
                     console.log('[App] Elderly data fetched successfully:', layerData.elderlyData);
                   } catch (error) {

@@ -8,8 +8,9 @@
 const CONSUMER_KEY = import.meta.env.VITE_SGIS_CONSUMER_KEY;
 const CONSUMER_SECRET = import.meta.env.VITE_SGIS_CONSUMER_SECRET;
 
-const SGIS_AUTH_URL = 'https://sgisapi.kostat.go.kr/OpenAPI3/auth/authentication.json';
-const SGIS_POPULATION_URL = 'https://sgisapi.kostat.go.kr/OpenAPI3/startupbiz/pplsummary.json';
+// 프록시를 통해 CORS 우회
+const SGIS_AUTH_URL = '/sgis-auth/OpenAPI3/auth/authentication.json';
+const SGIS_POPULATION_URL = '/sgis-data/OpenAPI3/startupbiz/pplsummary.json';
 
 // 경기도 시군구 행정구역 코드 매핑
 export const GYEONGGI_DISTRICT_CODES: Record<string, string> = {
@@ -91,14 +92,26 @@ interface SGISAuthResponse {
 
 interface SGISPopulationResponse {
   id: string;
-  result: Array<{
-    avg_age: string;
-    sixty_per: string; // 60대 비율
+  result: {
+    adm_cd: string; // 행정구역 코드
+    adm_nm: string; // 행정구역 이름
+    teenage_less_than_per: string; // 10대 미만 인구비율
+    teenage_less_than_cnt: string; // 10대 미만 인구수
+    teenage_per: string; // 10대 인구비율
+    teenage_cnt: string; // 10대 인구수
+    twenty_per: string; // 20대 인구비율
+    twenty_cnt: string; // 20대 인구수
+    thirty_per: string; // 30대 인구비율
+    thirty_cnt: string; // 30대 인구수
+    forty_per: string; // 40대 인구비율
+    forty_cnt: string; // 40대 인구수
+    fifty_per: string; // 50대 인구비율
+    fifty_cnt: string; // 50대 인구수
+    sixty_per: string; // 60대 인구비율
     sixty_cnt: string; // 60대 인구수
-    seventy_more_than_per: string; // 70대 이상 비율
+    seventy_more_than_per: string; // 70대 이상 인구비율
     seventy_more_than_cnt: string; // 70대 이상 인구수
-    tot_ppltn: string; // 총인구
-  }>;
+  };
   errMsg: string;
   errCd: number;
 }
@@ -106,14 +119,8 @@ interface SGISPopulationResponse {
 export interface ElderlyPopulationData {
   districtName: string;
   districtCode: string;
-  totalPopulation: number;
-  elderlyPopulation: number; // 60대 + 70대 이상
-  elderlyRatio: number; // 퍼센트
-  sixtyCount: number;
-  sixtyRatio: number;
-  seventyPlusCount: number;
-  seventyPlusRatio: number;
-  avgAge: number;
+  seventyPlusCount: number; // 70대 이상 인구수
+  seventyPlusRatio: number; // 70대 이상 인구비율
 }
 
 // Access Token 캐시 (1시간 유효)
@@ -195,30 +202,21 @@ export const getElderlyPopulation = async (locationName: string): Promise<Elderl
       throw new Error(`SGIS API 오류: ${data.errMsg} (코드: ${data.errCd})`);
     }
 
-    if (!data.result || data.result.length === 0) {
+    if (!data.result) {
       throw new Error(`'${locationName}'에 대한 인구 데이터가 없습니다.`);
     }
 
-    const populationData = data.result[0];
+    const populationData = data.result;
 
-    // 숫자 파싱
-    const sixtyCount = parseInt(populationData.sixty_cnt) || 0;
+    // 70대 이상 인구 데이터 파싱
     const seventyPlusCount = parseInt(populationData.seventy_more_than_cnt) || 0;
-    const totalPopulation = parseInt(populationData.tot_ppltn) || 0;
-    const elderlyPopulation = sixtyCount + seventyPlusCount;
-    const elderlyRatio = totalPopulation > 0 ? (elderlyPopulation / totalPopulation) * 100 : 0;
+    const seventyPlusRatio = parseFloat(populationData.seventy_more_than_per) || 0;
 
     const result: ElderlyPopulationData = {
-      districtName: locationName,
-      districtCode,
-      totalPopulation,
-      elderlyPopulation,
-      elderlyRatio: parseFloat(elderlyRatio.toFixed(2)),
-      sixtyCount,
-      sixtyRatio: parseFloat(populationData.sixty_per) || 0,
+      districtName: populationData.adm_nm || locationName,
+      districtCode: populationData.adm_cd || districtCode,
       seventyPlusCount,
-      seventyPlusRatio: parseFloat(populationData.seventy_more_than_per) || 0,
-      avgAge: parseFloat(populationData.avg_age) || 0,
+      seventyPlusRatio,
     };
 
     console.log('[SGIS API] Successfully fetched elderly population data:', result);
