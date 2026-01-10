@@ -38,9 +38,9 @@ export const LAYER_METADATA = {
     description: '도시 공원 및 녹지 구역 정보입니다.'
   },
   [ClimateLayerType.AIR_QUALITY]: {
-    name: '대기질 정보',
+    name: '실시간 대기질',
     color: '#06b6d4',
     wmsLayer: 'spggcee:grbt',
-    description: '대기 오염도 및 미세먼지 수치입니다. (추후 연동 예정)'
+    description: '에어코리아 실시간 대기질 정보 (PM10, PM2.5, 통합대기환경지수)'
   }
 };

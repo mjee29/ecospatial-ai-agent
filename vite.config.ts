@@ -18,13 +18,20 @@ export default defineConfig({
           const apiKey = url.searchParams.get('apiKey');
           const pathWithoutQuery = path.split('?')[0];
           const newPath = pathWithoutQuery.replace(/^\/wms/, '/ols/api/geoserver/wms');
-          
+
           // apiKey가 있으면 쿼리 파라미터로 추가
           if (apiKey) {
             return `${newPath}?apiKey=${apiKey}&${url.searchParams.toString().replace(`apiKey=${apiKey}`, '').replace(/^&/, '')}`;
           }
           return newPath;
         },
+        secure: false
+      },
+      // 에어코리아 API 프록시 (Mixed Content 해결)
+      '/airkorea': {
+        target: 'http://apis.data.go.kr',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/airkorea/, ''),
         secure: false
       }
     }

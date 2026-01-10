@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import MapComponent from './components/MapComponent';
 import { chatWithAgent } from './services/geminiService';
 import { getElderlyPopulation } from './services/sgisService';
+import { getAirQuality } from './services/airkoreaService';
 import { ActiveLayer, ClimateLayerType, Message } from './types';
 import { INITIAL_VIEW } from './constants';
 import {
@@ -108,6 +109,7 @@ const App: React.FC = () => {
             }
 
             // Minimal diff: if requested layer types match current types, don't recreate layers (avoids force-remounting WMSTileLayers)
+            // 단, locationName이 다르면 데이터 레이어(AIR_QUALITY, ELDERLY_POPULATION)는 업데이트 필요
             const requestedTypes = new Set((layers || []) as ClimateLayerType[]);
             const currentTypes = new Set(activeLayers.map(a => a.type));
             let needUpdate = false;
@@ -116,6 +118,15 @@ const App: React.FC = () => {
               for (const t of requestedTypes) {
                 if (!currentTypes.has(t)) { needUpdate = true; break; }
               }
+            }
+
+            // locationName이 변경되면 데이터 레이어는 무조건 업데이트
+            const hasDataLayer = requestedTypes.has(ClimateLayerType.AIR_QUALITY) ||
+                                 requestedTypes.has(ClimateLayerType.ELDERLY_POPULATION);
+            const currentLocationName = activeLayers.find(l => l.airQualityData)?.airQualityData?.locationName ||
+                                        activeLayers.find(l => l.elderlyData)?.elderlyData?.districtName;
+            if (hasDataLayer && locationName && locationName !== currentLocationName) {
+              needUpdate = true;
             }
 
             if (needUpdate) {
@@ -146,6 +157,34 @@ const App: React.FC = () => {
                     console.log('[App] Elderly data fetched successfully:', layerData.elderlyData);
                   } catch (error) {
                     console.error('[App] Failed to fetch elderly population data:', error);
+                  }
+                }
+
+                // AIR_QUALITY 레이어이고 locationName이 있으면 에어코리아 API 호출
+                if (type === ClimateLayerType.AIR_QUALITY && locationName) {
+                  try {
+                    console.log('[App] Fetching air quality data for:', locationName);
+                    const airData = await getAirQuality(locationName);
+                    layerData.airQualityData = {
+                      stationName: airData.stationName,
+                      locationName: airData.locationName,
+                      measureTime: airData.measureTime,
+                      lat: airData.lat,
+                      lng: airData.lng,
+                      khaiValue: airData.khaiValue,
+                      khaiGrade: airData.khaiGrade,
+                      pm10Value: airData.pm10Value,
+                      pm10Grade: airData.pm10Grade,
+                      pm25Value: airData.pm25Value,
+                      pm25Grade: airData.pm25Grade,
+                      so2Value: airData.so2Value,
+                      coValue: airData.coValue,
+                      o3Value: airData.o3Value,
+                      no2Value: airData.no2Value
+                    };
+                    console.log('[App] Air quality data fetched successfully:', layerData.airQualityData);
+                  } catch (error) {
+                    console.error('[App] Failed to fetch air quality data:', error);
                   }
                 }
 

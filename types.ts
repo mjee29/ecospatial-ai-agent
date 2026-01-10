@@ -28,6 +28,25 @@ export interface ActiveLayer {
     seventyPlusCount: number;
     avgAge: number;
   };
+  // 에어코리아 대기질 데이터 (AIR_QUALITY 레이어에만 적용)
+  airQualityData?: {
+    stationName: string;
+    locationName: string;
+    measureTime: string;
+    // 측정소 좌표
+    lat: number;
+    lng: number;
+    khaiValue: number;
+    khaiGrade: number;
+    pm10Value: number;
+    pm10Grade: number;
+    pm25Value: number;
+    pm25Grade: number;
+    so2Value: number;
+    coValue: number;
+    o3Value: number;
+    no2Value: number;
+  };
 }
 
 export interface Message {
@@ -43,6 +62,18 @@ export interface Message {
     sixtyCount: number;
     seventyPlusCount: number;
     avgAge: number;
+  };
+  // 메시지에 대기질 데이터 포함 가능
+  airQualityData?: {
+    stationName: string;
+    locationName: string;
+    measureTime: string;
+    khaiValue: number;
+    khaiGrade: number;
+    pm10Value: number;
+    pm10Grade: number;
+    pm25Value: number;
+    pm25Grade: number;
   };
 }
 
