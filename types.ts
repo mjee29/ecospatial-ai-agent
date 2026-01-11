@@ -58,6 +58,19 @@ export interface ActiveLayer {
     heat_index: number | null;
     wind_chill: number | null;
   };
+  // 녹지 비오톱 데이터 (GREEN_SPACE 레이어에만 적용)
+  greenSpaceData?: {
+    sggName: string;           // 시군구명
+    totalBiotArea: number;     // 총 비오톱 면적 (㎡)
+    featureCount: number;      // 피처 개수
+    classifications: Array<{
+      lclsfNm: string;         // 대분류명
+      mclsfNm: string;         // 중분류명
+      sclsfNm: string;         // 소분류명
+      dclsfNm: string;         // 세분류명
+      biotArea: number;        // 비오톱 면적 (㎡)
+    }>;
+  };
 }
 
 export interface Message {

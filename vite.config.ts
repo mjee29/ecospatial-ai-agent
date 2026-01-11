@@ -63,6 +63,16 @@ export default defineConfig({
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
+      },
+      // 경기도 공공데이터 API 프록시 (openapi.gg.go.kr)
+      '/gg-openapi': {
+        target: 'https://openapi.gg.go.kr',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/gg-openapi/, ''),
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       }
     }
   }

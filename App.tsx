@@ -5,6 +5,7 @@ import { chatWithAgent } from './services/geminiService';
 import { getElderlyPopulation } from './services/sgisService';
 import { getAirQuality } from './services/airkoreaService';
 import { getWeather } from './services/weatherService';
+import { getGreenSpaceData, formatBiotArea } from './services/greenSpaceService';
 import { ActiveLayer, ClimateLayerType, Message } from './types';
 import { INITIAL_VIEW } from './constants';
 import {
@@ -161,7 +162,8 @@ const App: React.FC = () => {
             // locationName이 변경되면 데이터 레이어는 무조건 업데이트
             const hasDataLayer = requestedTypes.has(ClimateLayerType.AIR_QUALITY) ||
                                  requestedTypes.has(ClimateLayerType.ELDERLY_POPULATION) ||
-                                 requestedTypes.has(ClimateLayerType.WEATHER);
+                                 requestedTypes.has(ClimateLayerType.WEATHER) ||
+                                 requestedTypes.has(ClimateLayerType.GREEN_SPACE);
             const currentLocationName = activeLayers.find(l => l.airQualityData)?.airQualityData?.locationName ||
                                         activeLayers.find(l => l.elderlyData)?.elderlyData?.districtName ||
                                         activeLayers.find(l => l.weatherData)?.weatherData?.sigun;
@@ -187,6 +189,7 @@ const App: React.FC = () => {
                 if (type === ClimateLayerType.ELDERLY_POPULATION && locationName) {
                   try {
                     console.log('[App] Fetching elderly population data for:', locationName);
+                    console.log('[App] Location name type:', typeof locationName, 'Value:', JSON.stringify(locationName));
                     const elderlyData = await getElderlyPopulation(locationName);
                     layerData.elderlyData = {
                       districtName: elderlyData.districtName,
@@ -196,6 +199,12 @@ const App: React.FC = () => {
                     console.log('[App] Elderly data fetched successfully:', layerData.elderlyData);
                   } catch (error) {
                     console.error('[App] Failed to fetch elderly population data:', error);
+                    // 에러 메시지를 사용자에게 표시
+                    setMessages(prev => [...prev, { 
+                      role: 'model', 
+                      text: `노인 인구 데이터 조회 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n이 오류가 반복되면 지역명이 올바른지 확인해주세요. 지원되는 지역: 경기도의 모든 시군구`, 
+                      timestamp: new Date() 
+                    }]);
                   }
                 }
 
@@ -250,6 +259,33 @@ const App: React.FC = () => {
                     }
                   } catch (error) {
                     console.error('[App] Failed to fetch weather data:', error);
+                  }
+                }
+
+                // GREEN_SPACE 레이어이고 locationName이 있으면 WFS에서 녹지 비오톱 데이터 조회
+                if (type === ClimateLayerType.GREEN_SPACE && locationName) {
+                  try {
+                    console.log('[App] Fetching green space data for:', locationName);
+                    const greenData = await getGreenSpaceData(locationName);
+                    layerData.greenSpaceData = {
+                      sggName: greenData.sggName,
+                      totalBiotArea: greenData.totalBiotArea,
+                      featureCount: greenData.featureCount,
+                      classifications: greenData.topClassifications.map(c => ({
+                        lclsfNm: c.lclsfNm,
+                        mclsfNm: c.mclsfNm,
+                        sclsfNm: c.sclsfNm,
+                        dclsfNm: c.dclsfNm,
+                        biotArea: c.biotArea
+                      }))
+                    };
+                    console.log('[App] Green space data fetched successfully:', {
+                      sggName: greenData.sggName,
+                      totalBiotArea: formatBiotArea(greenData.totalBiotArea),
+                      featureCount: greenData.featureCount
+                    });
+                  } catch (error) {
+                    console.error('[App] Failed to fetch green space data:', error);
                   }
                 }
 

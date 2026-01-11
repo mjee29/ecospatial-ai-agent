@@ -9,76 +9,65 @@ const CONSUMER_KEY = import.meta.env.VITE_SGIS_CONSUMER_KEY;
 const CONSUMER_SECRET = import.meta.env.VITE_SGIS_CONSUMER_SECRET;
 
 // 프록시를 통해 CORS 우회
-const SGIS_AUTH_URL = '/sgis-auth/OpenAPI3/auth/authentication.json';
+// 인증과 데이터 API 모두 mods.go.kr 도메인 사용 (토큰 호환성)
+const SGIS_AUTH_URL = '/sgis-data/OpenAPI3/auth/authentication.json';
 const SGIS_POPULATION_URL = '/sgis-data/OpenAPI3/startupbiz/pplsummary.json';
+const SGIS_ADDR_STAGE_URL = '/sgis-data/OpenAPI3/addr/stage.json';
 
-// 경기도 시군구 행정구역 코드 매핑
-export const GYEONGGI_DISTRICT_CODES: Record<string, string> = {
-  '수원시': '41110',
-  '수원': '41110',
-  '성남시': '41130',
-  '성남': '41130',
-  '의정부시': '41150',
-  '의정부': '41150',
-  '안양시': '41170',
-  '안양': '41170',
-  '부천시': '41190',
-  '부천': '41190',
-  '광명시': '41210',
-  '광명': '41210',
-  '평택시': '41220',
-  '평택': '41220',
-  '동두천시': '41250',
-  '동두천': '41250',
-  '안산시': '41270',
-  '안산': '41270',
-  '고양시': '41280',
-  '고양': '41280',
-  '과천시': '41290',
-  '과천': '41290',
-  '구리시': '41310',
-  '구리': '41310',
-  '남양주시': '41360',
-  '남양주': '41360',
-  '오산시': '41370',
-  '오산': '41370',
-  '시흥시': '41390',
-  '시흥': '41390',
-  '군포시': '41410',
-  '군포': '41410',
-  '의왕시': '41430',
-  '의왕': '41430',
-  '하남시': '41450',
-  '하남': '41450',
-  '용인시': '41460',
-  '용인': '41460',
-  '파주시': '41480',
-  '파주': '41480',
-  '이천시': '41500',
-  '이천': '41500',
-  '안성시': '41550',
-  '안성': '41550',
-  '김포시': '41570',
-  '김포': '41570',
-  '화성시': '41590',
-  '화성': '41590',
-  '광주시': '41610',
-  '광주': '41610',
-  '양주시': '41630',
-  '양주': '41630',
-  '포천시': '41650',
-  '포천': '41650',
-  '여주시': '41670',
-  '여주': '41670',
-  '연천군': '41800',
-  '연천': '41800',
-  '가평군': '41820',
-  '가평': '41820',
-  '양평군': '41830',
-  '양평': '41830',
-  '판교': '41130', // 판교는 성남시
-  '장안구': '41110', // 수원시 장안구
+// 경기도 시도 코드 (SGIS 코드 체계: 31, 행정표준코드: 41)
+const GYEONGGI_SIDO_CODE = '31';
+
+// 행정동 코드 캐시
+const districtCodeCache: Map<string, string> = new Map();
+
+// 경기도 시군구 이름 매핑 (검색용)
+const DISTRICT_NAME_VARIANTS: Record<string, string[]> = {
+  '수원': ['수원시', '수원'],
+  '성남': ['성남시', '성남'],
+  '의정부': ['의정부시', '의정부'],
+  '안양': ['안양시', '안양'],
+  '부천': ['부천시', '부천'],
+  '광명': ['광명시', '광명'],
+  '평택': ['평택시', '평택'],
+  '동두천': ['동두천시', '동두천'],
+  '안산': ['안산시', '안산'],
+  '고양': ['고양시', '고양'],
+  '과천': ['과천시', '과천'],
+  '구리': ['구리시', '구리'],
+  '남양주': ['남양주시', '남양주'],
+  '오산': ['오산시', '오산'],
+  '시흥': ['시흥시', '시흥'],
+  '군포': ['군포시', '군포'],
+  '의왕': ['의왕시', '의왕'],
+  '하남': ['하남시', '하남'],
+  '용인': ['용인시', '용인'],
+  '파주': ['파주시', '파주'],
+  '이천': ['이천시', '이천'],
+  '안성': ['안성시', '안성'],
+  '김포': ['김포시', '김포'],
+  '화성': ['화성시', '화성'],
+  '광주': ['광주시', '광주'],
+  '양주': ['양주시', '양주'],
+  '포천': ['포천시', '포천'],
+  '여주': ['여주시', '여주'],
+  '연천': ['연천군', '연천'],
+  '가평': ['가평군', '가평'],
+  '양평': ['양평군', '양평'],
 };
+
+// SGIS 주소 단계 조회 API 응답 인터페이스
+interface SGISAddrStageResponse {
+  id: string;
+  result: Array<{
+    cd: string;        // 행정구역 코드
+    addr_name: string; // 시군구명
+    full_addr: string; // 전체주소
+    x_coor: string;    // UTM-K X좌표
+    y_coor: string;    // UTM-K Y좌표
+  }>;
+  errMsg: string;
+  errCd: number;
+}
 
 interface SGISAuthResponse {
   id: string;
@@ -92,7 +81,7 @@ interface SGISAuthResponse {
 
 interface SGISPopulationResponse {
   id: string;
-  result: {
+  result: Array<{
     adm_cd: string; // 행정구역 코드
     adm_nm: string; // 행정구역 이름
     teenage_less_than_per: string; // 10대 미만 인구비율
@@ -111,7 +100,7 @@ interface SGISPopulationResponse {
     sixty_cnt: string; // 60대 인구수
     seventy_more_than_per: string; // 70대 이상 인구비율
     seventy_more_than_cnt: string; // 70대 이상 인구수
-  };
+  }>;
   errMsg: string;
   errCd: number;
 }
@@ -170,43 +159,111 @@ export const authenticateSGIS = async (): Promise<string> => {
 };
 
 /**
+ * SGIS API를 통해 시군구명으로 행정구역 코드를 조회합니다.
+ * @param locationName - 지역명 (예: '수원시', '수원', '성남')
+ * @returns 행정구역 코드 (5자리 시군구)
+ */
+export const getDistrictCode = async (locationName: string): Promise<string> => {
+  // 캐시 확인
+  const normalizedName = locationName.replace(/시$|군$/g, '').trim();
+  if (districtCodeCache.has(normalizedName)) {
+    console.log(`[SGIS API] Using cached district code for ${normalizedName}`);
+    return districtCodeCache.get(normalizedName)!;
+  }
+
+  // OAuth 토큰 발급
+  const accessToken = await authenticateSGIS();
+
+  console.log(`[SGIS API] Fetching district codes for 경기도...`);
+
+  // 경기도(41) 시군구 목록 조회
+  const response = await fetch(
+    `${SGIS_ADDR_STAGE_URL}?accessToken=${accessToken}&cd=${GYEONGGI_SIDO_CODE}`
+  );
+
+  if (!response.ok) {
+    throw new Error(`SGIS 주소 조회 실패: ${response.status} ${response.statusText}`);
+  }
+
+  const data: SGISAddrStageResponse = await response.json();
+
+  if (data.errCd !== 0) {
+    throw new Error(`SGIS API 오류: ${data.errMsg} (코드: ${data.errCd})`);
+  }
+
+  if (!data.result || data.result.length === 0) {
+    throw new Error(`경기도 시군구 목록을 찾을 수 없습니다.`);
+  }
+
+  console.log(`[SGIS API] Found ${data.result.length} districts in 경기도`);
+
+  // 시군구명이 포함된 행정구역 찾기
+  const matchingDistrict = data.result.find(item =>
+    item.addr_name.includes(normalizedName)
+  );
+
+  if (!matchingDistrict) {
+    console.error(`[SGIS API] Available districts:`, data.result.map(r => r.addr_name));
+    throw new Error(`'${locationName}' 지역의 행정구역 코드를 찾을 수 없습니다.`);
+  }
+
+  const districtCode = matchingDistrict.cd;
+  console.log(`[SGIS API] Found district code: ${districtCode} for ${matchingDistrict.addr_name}`);
+
+  // 캐시에 저장
+  districtCodeCache.set(normalizedName, districtCode);
+
+  return districtCode;
+};
+
+/**
  * 특정 행정구역의 거주인구 고령층 데이터를 조회합니다.
  * @param locationName - 지역명 (예: '수원시', '성남시', '판교')
  */
 export const getElderlyPopulation = async (locationName: string): Promise<ElderlyPopulationData> => {
   try {
-    // 지역명을 행정구역 코드로 변환
-    const normalizedName = locationName.replace(/시$|군$/g, '').trim();
-    const districtCode = GYEONGGI_DISTRICT_CODES[normalizedName] || GYEONGGI_DISTRICT_CODES[locationName];
-
-    if (!districtCode) {
-      throw new Error(`'${locationName}' 지역의 행정구역 코드를 찾을 수 없습니다. 경기도 내 시군구만 지원됩니다.`);
-    }
+    // 경기도 API로 행정동 코드 조회
+    const districtCode = await getDistrictCode(locationName);
 
     // OAuth 토큰 발급
     const accessToken = await authenticateSGIS();
 
-    // 거주인구 데이터 조회
+    // 거주인구 데이터 조회 (GET 방식)
+    const requestUrl = `${SGIS_POPULATION_URL}?accessToken=${accessToken}&adm_cd=${districtCode}`;
     console.log(`[SGIS API] Fetching elderly population for ${locationName} (${districtCode})...`);
-    const response = await fetch(
-      `${SGIS_POPULATION_URL}?accessToken=${accessToken}&adm_cd=${districtCode}`
-    );
+    console.log(`[SGIS API] Request URL: ${SGIS_POPULATION_URL}?accessToken=***&adm_cd=${districtCode}`);
+
+    const response = await fetch(requestUrl);
 
     if (!response.ok) {
       throw new Error(`SGIS 데이터 조회 실패: ${response.status} ${response.statusText}`);
     }
 
     const data: SGISPopulationResponse = await response.json();
+    
+    console.log('[SGIS API] Raw response:', JSON.stringify(data, null, 2));
 
-    if (data.errCd !== 0) {
+    // errCd가 0이 아닌 경우 에러 처리
+    if (data.errCd && data.errCd !== 0) {
+      // 특별 에러 메시지: adm_cd가 잘못되었을 가능성
+      if (data.errCd === -100) {
+        console.error(`[SGIS API] 검색 결과 없음. 요청한 행정구역 코드: ${districtCode}`);
+        console.error('[SGIS API] 가능한 원인: 잘못된 행정구역 코드 또는 SGIS API에 해당 데이터 없음');
+        throw new Error(`SGIS API 오류: 검색결과가 존재하지 않습니다 (코드: ${data.errCd}). 요청한 adm_cd: ${districtCode}`);
+      }
       throw new Error(`SGIS API 오류: ${data.errMsg} (코드: ${data.errCd})`);
     }
 
-    if (!data.result) {
-      throw new Error(`'${locationName}'에 대한 인구 데이터가 없습니다.`);
+    // result가 배열인 경우 처리
+    if (!data.result || data.result.length === 0) {
+      throw new Error(`'${locationName}'에 대한 인구 데이터가 없습니다. API 응답 구조 확인 필요.`);
     }
 
-    const populationData = data.result;
+    // result가 배열이므로, 요청한 adm_cd와 일치하는 데이터 찾기
+    // 또는 배열의 첫 번째 요소 사용
+    const populationData = data.result.find(item => item.adm_cd === districtCode) || data.result[0];
+
+    console.log('[SGIS API] Selected population data:', populationData);
 
     // 70대 이상 인구 데이터 파싱
     const seventyPlusCount = parseInt(populationData.seventy_more_than_cnt) || 0;
@@ -231,8 +288,7 @@ export const getElderlyPopulation = async (locationName: string): Promise<Elderl
  * 경기도 전체 시군구의 고령인구 데이터를 배치로 조회합니다.
  */
 export const getAllGyeonggiElderlyPopulation = async (): Promise<ElderlyPopulationData[]> => {
-  const districts = Object.keys(GYEONGGI_DISTRICT_CODES)
-    .filter(name => name.endsWith('시') || name.endsWith('군'));
+  const districts = Object.keys(DISTRICT_NAME_VARIANTS);
 
   const results: ElderlyPopulationData[] = [];
 

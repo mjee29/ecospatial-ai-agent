@@ -241,6 +241,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
         elderlyData: elderlyLayer?.elderlyData,
         airQualityData: airQualityLayer?.airQualityData,
         weatherData: weatherLayer?.weatherData,
+        greenSpaceData: greenSpaceLayer?.greenSpaceData,
         wmsLayers: wmsLayers.length > 0 ? wmsLayers : undefined,
         wfsFeatureData: wfsFeatureData.length > 0 ? wfsFeatureData : undefined
       });

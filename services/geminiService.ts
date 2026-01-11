@@ -79,6 +79,18 @@ interface RAGAnalysisData {
     heat_index: number | null;
     wind_chill: number | null;
   };
+  greenSpaceData?: {
+    sggName: string;           // 시군구명
+    totalBiotArea: number;     // 총 비오톱 면적 (㎡)
+    featureCount: number;      // 피처 개수
+    classifications: Array<{
+      lclsfNm: string;         // 대분류명
+      mclsfNm: string;         // 중분류명
+      sclsfNm: string;         // 소분류명
+      dclsfNm: string;         // 세분류명
+      biotArea: number;        // 비오톱 면적 (㎡)
+    }>;
+  };
   // WMS 레이어 정보 (침수위험, 폭염취약성, 녹지현황 등)
   wmsLayers?: string[];
   // WFS에서 가져온 실제 feature 데이터
@@ -97,7 +109,7 @@ export const generateRAGAnalysis = async (data: RAGAnalysisData): Promise<string
   }
 
   // 데이터가 없으면 분석 불가
-  if (!data.elderlyData && !data.airQualityData && !data.weatherData && (!data.wmsLayers || data.wmsLayers.length === 0)) {
+  if (!data.elderlyData && !data.airQualityData && !data.weatherData && !data.greenSpaceData && (!data.wmsLayers || data.wmsLayers.length === 0)) {
     return '';
   }
 
@@ -141,6 +153,33 @@ export const generateRAGAnalysis = async (data: RAGAnalysisData): Promise<string
     }
     if (w.wind_chill !== null) {
       dataContext += `- 체감온도(바람): ${w.wind_chill.toFixed(1)}°C\n`;
+    }
+    dataContext += '\n';
+  }
+
+  if (data.greenSpaceData) {
+    const g = data.greenSpaceData;
+    const totalAreaKm2 = g.totalBiotArea / 1000000;
+    const totalAreaHa = g.totalBiotArea / 10000;
+    dataContext += `### 녹지 비오톱 현황\n`;
+    dataContext += `- 시군구: ${g.sggName}\n`;
+    dataContext += `- 녹지 공간 개수: ${g.featureCount.toLocaleString()}개\n`;
+
+    // 면적 데이터가 유효한 경우에만 면적 정보 표시
+    if (g.totalBiotArea > 0) {
+      dataContext += `- 총 녹지 면적: ${totalAreaKm2.toFixed(2)} ㎢ (${totalAreaHa.toFixed(1)} ha)\n`;
+      if (g.classifications && g.classifications.length > 0) {
+        // 면적이 있는 분류만 필터링
+        const validClassifications = g.classifications.filter(c => c.biotArea > 0);
+        if (validClassifications.length > 0) {
+          dataContext += `- 주요 녹지 유형 (면적 상위):\n`;
+          validClassifications.slice(0, 5).forEach((c, idx) => {
+            const areaHa = c.biotArea / 10000;
+            const name = c.dclsfNm?.trim() || c.sclsfNm?.trim() || c.mclsfNm?.trim() || '기타';
+            dataContext += `  ${idx + 1}. ${name}: ${areaHa.toFixed(2)} ha\n`;
+          });
+        }
+      }
     }
     dataContext += '\n';
   }
@@ -194,11 +233,12 @@ ${dataContext}
 2. 고령인구가 있다면 고령화율과 취약계층 관점에서 설명
 3. 대기질 데이터가 있다면 현재 상태와 건강 영향 설명
 4. 기상 데이터가 있다면 현재 날씨와 체감 상태 설명
-5. 실제 피처 데이터가 있다면 구체적인 수치와 속성을 인용 (예: "녹지율 23.5%", "침수위험등급 3등급" 등)
-6. 활성화된 레이어가 있다면 해당 리스크 유형 언급 (침수위험, 폭염취약성, 녹지현황 등)
-7. 복합 리스크가 있다면 강조 (예: 폭염+고령인구, 침수위험+취약계층 등)
-8. 전문적이지만 이해하기 쉬운 한국어로 작성
-9. 최대 3문장으로 제한`
+5. 녹지 비오톱 데이터가 있다면 총 녹지 면적과 주요 녹지 유형을 구체적인 수치로 설명 (예: "총 녹지 면적 12.5㎢", "산림 850ha, 공원 230ha")
+6. 실제 피처 데이터가 있다면 구체적인 수치와 속성을 인용 (예: "녹지율 23.5%", "침수위험등급 3등급" 등)
+7. 활성화된 레이어가 있다면 해당 리스크 유형 언급 (침수위험, 폭염취약성, 녹지현황 등)
+8. 복합 리스크가 있다면 강조 (예: 폭염+고령인구, 침수위험+취약계층, 녹지부족+폭염취약 등)
+9. 전문적이지만 이해하기 쉬운 한국어로 작성
+10. 최대 3문장으로 제한`
           }]
         }
       ],
