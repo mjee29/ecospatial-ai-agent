@@ -590,22 +590,6 @@ const DashboardPage: React.FC = () => {
               <Maximize2 size={20} />
             </button>
 
-            {/* GG API key status */}
-            <div className="hidden md:flex items-center gap-2">
-              {import.meta.env.VITE_GG_CLIMATE_API_KEY ? (
-                <div className="text-xs text-slate-500">
-                  GG: <span className="font-mono">{import.meta.env.VITE_GG_CLIMATE_API_KEY.slice(0,4)}...{import.meta.env.VITE_GG_CLIMATE_API_KEY.slice(-4)}</span>
-                </div>
-              ) : (
-                <div className="text-xs text-amber-600">GG Key 없음</div>
-              )}
-              <button
-                onClick={() => window.location.reload()}
-                className="text-xs px-2 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                새로고침
-              </button>
-            </div>
           </div>
         </div>
 
