@@ -160,6 +160,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
   const [wfsDataCache, setWfsDataCache] = useState<Record<string, WFSFeatureCollection>>({});
   const lastAnalyzedRef = React.useRef<string>('');
 
+  // 패널 z-index 관리 (클릭한 패널이 맨 위로)
+  const [topPanelId, setTopPanelId] = useState<string | null>(null);
+
   // RAG 분석 생성 함수
   const generateAnalysis = React.useCallback(async () => {
     // 분석할 레이어가 있는지 확인
@@ -490,14 +493,24 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
         })}
 
         {/* Air Quality Data Card - Top Right */}
-        {activeLayers.filter(l => l.visible && l.type === 'air_quality' && l.airQualityData).map(layer => {
+        {activeLayers.filter(l => l.visible && l.type === 'air_quality' && l.airQualityData).map((layer, idx) => {
           const data = layer.airQualityData!;
           const khaiInfo = getAirQualityGradeInfo(data.khaiGrade);
           const pm10Info = getAirQualityGradeInfo(data.pm10Grade);
           const pm25Info = getAirQualityGradeInfo(data.pm25Grade);
+          const isTop = topPanelId === `air_${layer.id}`;
 
           return (
-            <div key={layer.id} className="absolute top-8 right-8 z-[1000] w-[320px] animate-in slide-in-from-top-4 duration-500">
+            <div
+              key={layer.id}
+              className="absolute w-[320px] animate-in slide-in-from-top-4 duration-500 cursor-pointer transition-all hover:scale-[1.02]"
+              style={{
+                top: `${2 + idx * 0.5}rem`,
+                right: `${2 + idx * 0.5}rem`,
+                zIndex: isTop ? 1010 : 1000 - idx
+              }}
+              onClick={() => setTopPanelId(`air_${layer.id}`)}
+            >
               <div className="bg-white/95 backdrop-blur-md rounded-[28px] shadow-2xl border border-slate-200 overflow-hidden">
                 {/* Header */}
                 <div className={`${khaiInfo.bgColor} px-6 py-4 text-white`}>
@@ -587,13 +600,23 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
         })}
 
         {/* Weather Data Card */}
-        {activeLayers.filter(l => l.visible && l.type === 'weather' && l.weatherData).map(layer => {
+        {activeLayers.filter(l => l.visible && l.type === 'weather' && l.weatherData).map((layer, idx) => {
           const data = layer.weatherData!;
           const feelsLike = data.wind_chill !== null ? data.wind_chill : data.heat_index;
           const feelsLikeLabel = data.wind_chill !== null ? '체감온도 (바람)' : data.heat_index !== null ? '체감온도 (열지수)' : null;
+          const isTop = topPanelId === `weather_${layer.id}`;
 
           return (
-            <div key={layer.id} className="absolute top-8 right-8 z-[1000] w-[300px] animate-in slide-in-from-top-4 duration-500">
+            <div
+              key={layer.id}
+              className="absolute w-[300px] animate-in slide-in-from-top-4 duration-500 cursor-pointer transition-all hover:scale-[1.02]"
+              style={{
+                top: `${5 + idx * 0.5}rem`,
+                right: `${2.5 + idx * 0.5}rem`,
+                zIndex: isTop ? 1010 : 998 - idx
+              }}
+              onClick={() => setTopPanelId(`weather_${layer.id}`)}
+            >
               <div className="bg-white/95 backdrop-blur-md rounded-[28px] shadow-2xl border border-slate-200 overflow-hidden">
                 {/* Header */}
                 <div className="bg-blue-500 px-6 py-4 text-white">
