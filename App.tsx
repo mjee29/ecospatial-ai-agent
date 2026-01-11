@@ -19,7 +19,6 @@ import {
   Activity,
   Maximize2,
   Wind,
-  Droplets,
   MapPin
 } from 'lucide-react';
 
@@ -429,7 +428,6 @@ const App: React.FC = () => {
                   { icon: <Thermometer size={12}/>, label: '기온/날씨', color: 'text-blue-500', keyword: '기상 정보' },
                   { icon: <Wind size={12}/>, label: '대기질', color: 'text-cyan-500', keyword: '대기질 정보' },
                   { icon: <Users size={12}/>, label: '노인인구', color: 'text-purple-500', keyword: '노인 인구 밀도' },
-                  { icon: <Droplets size={12}/>, label: '폭염취약성', color: 'text-orange-500', keyword: '폭염 취약성' },
                   { icon: <MapPin size={12}/>, label: '녹지현황', color: 'text-green-500', keyword: '녹지 현황' },
                 ].map((info, idx) => (
                   <button

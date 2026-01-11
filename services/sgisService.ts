@@ -240,7 +240,7 @@ export const getElderlyPopulation = async (locationName: string): Promise<Elderl
     }
 
     const data: SGISPopulationResponse = await response.json();
-    
+
     console.log('[SGIS API] Raw response:', JSON.stringify(data, null, 2));
 
     // errCd가 0이 아닌 경우 에러 처리

@@ -20,12 +20,6 @@ export const LAYER_METADATA = {
     wmsLayer: 'spggcee:tm_fldn_trce',
     description: '침수 흔적 및 지형 기반 위험 지역입니다.'
   },
-  [ClimateLayerType.HEATWAVE_VULNERABILITY]: {
-    name: '폭염 등급 평가',
-    color: '#f97316',
-    wmsLayer: 'spggcee:rst_thrcf_evl_41',
-    description: '도시 열섬 현상 및 폭염 취약성 등급 데이터입니다.'
-  },
   [ClimateLayerType.ELDERLY_POPULATION]: {
     name: '고령인구 밀도',
     color: '#8b5cf6',

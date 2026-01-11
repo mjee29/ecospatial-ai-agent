@@ -1,7 +1,6 @@
 
 export enum ClimateLayerType {
   FLOOD_RISK = 'flood_risk',
-  HEATWAVE_VULNERABILITY = 'heatwave',
   ELDERLY_POPULATION = 'elderly',
   GREEN_SPACE = 'parks',
   AIR_QUALITY = 'air_quality',

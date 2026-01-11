@@ -40,27 +40,28 @@ export const fetchWFSData = async (
 
     const params = new URLSearchParams({
       service: 'WFS',
-      version: '2.0.0',
+      version: '1.0.0',
       request: 'GetFeature',
       typeName: typeName,
       outputFormat: 'application/json',
-      srsname: 'EPSG:4326'
+      srs: 'EPSG:4326'
     });
 
-    // version 2.0.0에서는 count 파라미터 사용 (maxFeatures 대신)
-    params.append('count', maxFeatures.toString());
+    // version 1.0.0에서는 maxFeatures 파라미터 사용
+    params.append('maxFeatures', maxFeatures.toString());
 
     // API 키가 제공되면 추가
     if (apiKey) {
       params.append('apiKey', apiKey);
+      console.log('[WFS] API Key added');
     }
 
     // 바운딩박스가 제공되면 추가
-    // EPSG:4326 좌표계에서는 (ymin,xmin,ymax,xmax) 순서 필요
+    // WFS 2.0.0 표준: (minx,miny,maxx,maxy) 순서 (경도,위도,경도,위도)
     if (bbox) {
-      const bboxParam = `${bbox.minLat},${bbox.minLon},${bbox.maxLat},${bbox.maxLon}`;
+      const bboxParam = `${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat}`;
       params.append('bbox', bboxParam);
-      console.log('[WFS] BBox (ymin,xmin,ymax,xmax):', bboxParam);
+      console.log('[WFS] BBox (minx,miny,maxx,maxy):', bboxParam);
     }
 
     const url = `${wfsUrl}?${params.toString()}`;
@@ -69,6 +70,13 @@ export const fetchWFSData = async (
     const response = await fetch(url);
 
     if (!response.ok) {
+      let errorDetail = '';
+      try {
+        errorDetail = await response.text();
+      } catch (e) {
+        errorDetail = '에러 응답 파싱 실패';
+      }
+      console.error('[WFS] Server error response:', errorDetail.substring(0, 500));
       throw new Error(`WFS 요청 실패: ${response.status} ${response.statusText}`);
     }
 
@@ -109,14 +117,6 @@ export const WFS_LAYER_CONFIG = {
     description: '침수 흔적 및 지형 기반 위험 지역입니다.',
     color: '#ef4444',
     featureKey: 'properties' // GeoJSON에서 표시할 속성 그룹
-  },
-  heatwave: {
-    wfsTypeName: 'spggcee:rst_thrcf_evl_41',
-    wmsLayer: 'spggcee:rst_thrcf_evl_41',
-    name: '폭염 등급 평가',
-    description: '도시 열섬 현상 및 폭염 취약성 등급 데이터입니다.',
-    color: '#f97316',
-    featureKey: 'properties'
   },
   green_space: {
     wfsTypeName: 'spggcee:grbt',

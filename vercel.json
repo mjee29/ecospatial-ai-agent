@@ -11,6 +11,14 @@
     {
       "source": "/airkorea/:path*",
       "destination": "https://apis.data.go.kr/:path*"
+    },
+    {
+      "source": "/sgis-data/:path*",
+      "destination": "https://sgisapi.mods.go.kr/:path*"
+    },
+    {
+      "source": "/gg-openapi/:path*",
+      "destination": "https://openapi.gg.go.kr/:path*"
     }
   ],
   "headers": [

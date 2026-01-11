@@ -110,7 +110,6 @@ const WFSDataLoader = ({
   useEffect(() => {
     // WFS로 지원되는 레이어 타입인지 확인
     const configKey = layer.type === 'flood_risk' ? 'flood_risk' 
-      : layer.type === 'heatwave' ? 'heatwave'
       : layer.type === 'parks' ? 'green_space'
       : layer.type === 'elderly' ? 'elderly_population'
       : null;
@@ -170,11 +169,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
 
     // WMS 레이어 확인 (데이터가 없어도 레이어 타입으로 분석 가능)
     const floodLayer = activeLayers.find(l => l.type === 'flood_risk');
-    const heatwaveLayer = activeLayers.find(l => l.type === 'heatwave');
     const greenSpaceLayer = activeLayers.find(l => l.type === 'parks');
 
     // 아무 레이어도 없으면 분석 불가
-    if (!elderlyLayer && !airQualityLayer && !weatherLayer && !floodLayer && !heatwaveLayer && !greenSpaceLayer) {
+    if (!elderlyLayer && !airQualityLayer && !weatherLayer && !floodLayer && !greenSpaceLayer) {
       return;
     }
 
@@ -198,7 +196,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
         // 최대 3개의 샘플 feature 속성 추출
         const sampleProps = wfsData.features.slice(0, 3).map(f => f.properties);
         const layerName = layer.type === 'flood_risk' ? '침수위험'
-          : layer.type === 'heatwave' ? '폭염취약성'
           : layer.type === 'parks' ? '녹지현황'
           : layer.type;
 
@@ -218,7 +215,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
       air: airQualityLayer?.airQualityData?.stationName,
       weather: weatherLayer?.weatherData?.station,
       flood: floodLayer?.type,
-      heatwave: heatwaveLayer?.type,
       greenSpace: greenSpaceLayer?.type,
       wfsCount: wfsFeatureData.reduce((sum, d) => sum + d.featureCount, 0)
     });
@@ -230,7 +226,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
     // WMS 레이어 정보 구성
     const wmsLayers: string[] = [];
     if (floodLayer) wmsLayers.push('침수위험지도');
-    if (heatwaveLayer) wmsLayers.push('폭염취약성지도');
     if (greenSpaceLayer) wmsLayers.push('녹지현황지도');
 
     setIsAnalyzing(true);
@@ -344,7 +339,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ activeLayers, viewState, on
         <ZoomWatcher onZoomEnd={handleZoomEnd} />
 
         {/* WFS 데이터 로더 */}
-        {activeLayers.filter(l => l.visible && ['flood_risk', 'heatwave', 'parks', 'elderly'].includes(l.type)).map(layer => (
+        {activeLayers.filter(l => l.visible && ['flood_risk', 'parks', 'elderly'].includes(l.type)).map(layer => (
           <WFSDataLoader 
             key={`wfs-loader-${layer.id}`}
             layer={layer} 
