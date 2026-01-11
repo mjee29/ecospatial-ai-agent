@@ -11,6 +11,7 @@ import { chatWithAgent } from '../services/geminiService';
 import { getElderlyPopulation } from '../services/sgisService';
 import { getAirQuality } from '../services/airkoreaService';
 import { getWeather } from '../services/weatherService';
+import { getGreenSpaceData } from '../services/greenSpaceService';
 import {
   signOut,
   createChat,
@@ -382,7 +383,8 @@ const DashboardPage: React.FC = () => {
 
             const hasDataLayer = requestedTypes.has(ClimateLayerType.AIR_QUALITY) ||
                                  requestedTypes.has(ClimateLayerType.ELDERLY_POPULATION) ||
-                                 requestedTypes.has(ClimateLayerType.WEATHER);
+                                 requestedTypes.has(ClimateLayerType.WEATHER) ||
+                                 requestedTypes.has(ClimateLayerType.GREEN_SPACE);
             const prevLocationName = activeLayers.find(l => l.airQualityData)?.airQualityData?.locationName ||
                                      activeLayers.find(l => l.elderlyData)?.elderlyData?.districtName ||
                                      activeLayers.find(l => l.weatherData)?.weatherData?.sigun;
@@ -426,6 +428,24 @@ const DashboardPage: React.FC = () => {
                       };
                     }
                   } catch (error) { console.error('Failed to fetch weather:', error); }
+                }
+
+                if (type === ClimateLayerType.GREEN_SPACE && locationName) {
+                  try {
+                    const greenData = await getGreenSpaceData(locationName);
+                    layerData.greenSpaceData = {
+                      sggName: greenData.sggName,
+                      totalBiotArea: greenData.totalBiotArea,
+                      featureCount: greenData.featureCount,
+                      classifications: greenData.topClassifications.map(c => ({
+                        lclsfNm: c.lclsfNm,
+                        mclsfNm: c.mclsfNm,
+                        sclsfNm: c.sclsfNm,
+                        dclsfNm: c.dclsfNm,
+                        biotArea: c.biotArea
+                      }))
+                    };
+                  } catch (error) { console.error('Failed to fetch green space:', error); }
                 }
 
                 newActiveLayers.push(layerData);
